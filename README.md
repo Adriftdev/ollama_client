@@ -2,7 +2,7 @@
 
 `ollama_client_rs` is a Rust-based, local-first SDK for interacting with [Ollama](https://ollama.com/), providing idiomatic Rust bindings for chat, functional calling, and advanced agentic workflows such as **supervisor orchestration**, **app-owned RAG**, and **bounded planning cycles**.
 
-This project shares the exact same philosophy and workflow architectures as the `gemini_client` toolkit, enabling developers to build state-of-the-art agentic behaviors entirely locally without relying on external or paid cloud APIs.
+This project shares the exact same philosophy and workflow architectures as the [gemini_client](https://github.com/Adriftdev/gemini-client) toolkit, enabling developers to build state-of-the-art agentic behaviors entirely locally without relying on external or paid cloud APIs.
 
 ## Features
 
