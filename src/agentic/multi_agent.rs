@@ -235,12 +235,18 @@ where
 
             if review.decision == "accept" {
                 accepted_artifacts.push(artifact);
+            } else {
+                // Reviewer exhausted all revision attempts without accepting.
+                // Force-accept the latest artifact to prevent total workflow
+                // failure from overly strict reviewers (common with local
+                // models). The revision cycle is best-effort, not a hard gate.
+                crate::telemetry::telemetry_warn!(
+                    agent_role = assignment.agent_role.as_str(),
+                    revision_count = artifact.revision_count,
+                    "supervisor force-accepting artifact after exhausting revision attempts"
+                );
+                accepted_artifacts.push(artifact);
             }
-        }
-
-        if accepted_artifacts.is_empty() {
-            crate::telemetry::telemetry_warn!("supervisor.run finished with no accepted artifacts");
-            return Err(OrchestrationError::NoAcceptedArtifacts);
         }
 
         let raw_response = self
@@ -755,7 +761,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn supervisor_requires_accepted_artifacts_for_synthesis() {
+    async fn supervisor_force_accepts_after_exhausting_revisions() {
         let backend = ScriptedBackend::new(vec![
             Box::new(|_| {
                 Ok(response_with_text(
@@ -774,9 +780,11 @@ mod tests {
                     r#"{"decision":"revise","feedback":"still not right"}"#,
                 ))
             }),
+            // synthesizer produces the final answer from force-accepted artifact
+            Box::new(|_| Ok(response_with_text("final from force-accept"))),
         ]);
         let workflow = SupervisorWorkflow::new(&backend, SupervisorConfig::default());
-        let error = workflow
+        let outcome = workflow
             .run(
                 "test-model",
                 "Prepare a report",
@@ -784,9 +792,11 @@ mod tests {
                 Option::<&StaticRetriever>::None,
             )
             .await
-            .expect_err("workflow should fail without accepted artifacts");
+            .expect("workflow should succeed via force-accept");
 
-        assert!(matches!(error, OrchestrationError::NoAcceptedArtifacts));
+        assert_eq!(outcome.accepted_artifacts.len(), 1);
+        assert_eq!(outcome.accepted_artifacts[0].revision_count, 1);
+        assert!(outcome.final_answer.contains("final from force-accept"));
     }
 }
 
