@@ -1,6 +1,6 @@
 [package]
 name = "ollama_client_rs"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "A Rust client for Ollama API with agentic and tooling support"
 license = "MIT"
