@@ -43,6 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             content: "Why is the sky blue?".to_string(),
             name: None,
             images: None,
+            thinking: None,
             tool_calls: None,
         }],
         tools: None,
@@ -65,6 +66,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 content: "You are a helpful culinary assistant.".to_string(),
                 name: None,
                 images: None,
+                thinking: None,
                 tool_calls: None,
             },
             Message {
@@ -72,6 +74,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 content: "Give me a recipe for chocolate chip cookies in JSON format.".to_string(),
                 name: None,
                 images: None,
+                thinking: None,
                 tool_calls: None,
             },
         ],

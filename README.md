@@ -1,67 +1,43 @@
-# Ollama Client RS
+# ollama_client_rs
 
-`ollama_client_rs` is a Rust-based, local-first SDK for interacting with [Ollama](https://ollama.com/), providing idiomatic Rust bindings for chat, functional calling, and advanced agentic workflows such as **supervisor orchestration**, **app-owned RAG**, and **bounded planning cycles**.
+`ollama_client_rs` is a transport-focused Rust SDK for the [Ollama](https://ollama.com/) API.
 
-This project shares the exact same philosophy and workflow architectures as the [gemini_client](https://github.com/Adriftdev/gemini-client) toolkit, enabling developers to build state-of-the-art agentic behaviors entirely locally without relying on external or paid cloud APIs.
+It provides:
 
-## Features
+- typed request and response models
+- synchronous chat requests
+- streaming chat requests
+- embeddings
+- model listing
+- lightweight telemetry hooks
 
-- **Idiomatic Client**: Native, fully async `OllamaClient` using `reqwest` and `tokio`.
-- **Function Calling Framework**: High-level tooling for deterministic and cyclical tool loops, supporting both `Sync` and `Async` closures.
-- **Auto-Retrying Execution**: Configurable round-trip loop limits that automatically submit model function request formats and auto-append returned results.
-- **Bounded Planner**: An agent mode specifically requesting JSON format responses for formulating executing step-by-step sequential plans, handling mid-flight adjustments.
-- **Supervisor Workflow**: Multi-agent topological loop implementing deterministically bound assignments across worker, reviewer, and synthesizer capabilities. 
-- **App-Owned RAG**: Built-in retrieval abstraction for simple chunk selection, truncation, and validation with robust citation checks.
+This crate does not own orchestration, planning, RAG, or tool-loop behavior. Those higher-level workflows should live in the application layer, such as RAIN.
 
-## Usage
-
-Start your local Ollama instance (e.g. `llama3.1` is recommended for high functioning tool capabilities) and then experiment with the crate.
-
-### Basic Chat
+## Basic usage
 
 ```rust
-use ollama_client_rs::{OllamaClient, types::ChatRequest, agentic::build_user_message};
+use ollama_client_rs::{
+    types::{ChatRequest, Message},
+    OllamaClient,
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = OllamaClient::new("http://127.0.0.1:11434/api".to_string());
-    
-    let request = ChatRequest {
-        model: "llama3.1:8b".to_string(),
-        messages: vec![build_user_message("Why is the sky blue?")],
-        tools: None,
-        format: None,
-        options: None,
-        stream: Some(false),
-        keep_alive: None,
-    };
+    let client = OllamaClient::default();
+    let response = client
+        .chat(&ChatRequest {
+            model: "gemma4:latest".to_string(),
+            messages: vec![Message::user("Summarize this project in two sentences.")],
+            ..Default::default()
+        })
+        .await?;
 
-    let response = client.chat(&request).await?;
-    println!("Response: {}", response.message.content);
+    println!("{}", response.message.content.unwrap_or_default());
     Ok(())
 }
 ```
 
-## Examples
+## Position in the stack
 
-To view complex agentic integrations run the following examples available in the `/examples` directory:
-
-```sh
-# Basic chat and structured JSON
-cargo run --example basic
-
-# Continuous Tool execution
-cargo run --example custom_tool
-
-# Multi-Agent orchestrator using assignments, workflow blackboard and revisions
-cargo run --example supervisor_workflow
-
-# Step-by-step plan verification and execution loop
-cargo run --example plan_and_execute
-```
-
-## Telemetry
-This project utilizes `tracing` for thorough and advanced logging. Set `RUST_LOG=debug` or `RUST_LOG=info` for deeper insights into internal states across long-running tool execution or planning loops.
-
-## License
-MIT
+- Use `ollama_client_rs` when you want a low-level SDK for Ollama.
+- Use RAIN when you want agentic execution, tool orchestration, retrieval, planning, or multi-step workflows.

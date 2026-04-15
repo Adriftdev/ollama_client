@@ -1,8 +1,8 @@
 [package]
 name = "ollama_client_rs"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
-description = "A Rust client for Ollama API with agentic and tooling support"
+description = "A Rust SDK for the Ollama API"
 license = "MIT"
 repository = "https://github.com/Adriftdev/ollama_client"
 
@@ -11,7 +11,9 @@ default = []
 tracing = ["dep:tracing"]
 
 [dependencies]
+async-stream = { version = "0.3", default-features = false }
 async-trait = { version = "0.1", default-features = false }
+futures-util = { version = "0.3", default-features = false }
 reqwest = { version = "0.12", default-features = false, features = [
   "json",
   "stream",

@@ -33,6 +33,9 @@ pub struct Message {
     
     #[serde(skip_serializing_if = "Option::is_none")]
     pub images: Option<Vec<String>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thinking: Option<String>,
     
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<ToolCall>>,
@@ -40,11 +43,15 @@ pub struct Message {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ToolCall {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
     pub function: FunctionCall,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct FunctionCall {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub index: Option<u64>,
     pub name: String,
     pub arguments: Value,
 }
@@ -68,6 +75,9 @@ pub struct ChatResponse {
     pub created_at: String,
     pub message: Message,
     pub done: bool,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub done_reason: Option<String>,
     
     #[serde(skip_serializing_if = "Option::is_none")]
     pub total_duration: Option<u64>,
@@ -81,6 +91,43 @@ pub struct ChatResponse {
     pub eval_count: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub eval_duration: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum EmbedInput {
+    Single(String),
+    Multiple(Vec<String>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct EmbedRequest {
+    pub model: String,
+    pub input: EmbedInput,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub truncate: Option<bool>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub options: Option<Value>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub keep_alive: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct EmbedResponse {
+    pub model: String,
+    pub embeddings: Vec<Vec<f32>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_duration: Option<u64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub load_duration: Option<u64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prompt_eval_count: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
