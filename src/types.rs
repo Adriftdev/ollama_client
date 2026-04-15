@@ -437,9 +437,16 @@ impl ChatResponse {
     /// for models that emit tool calls as plain text (Gemma, Llama, etc.).
     pub fn extract_tool_calls(&self) -> Vec<ToolCall> {
         // 1. Native tool_calls field (Ollama standard, Qwen, Mistral, etc.)
+        // Filter out any entries with empty names — Ollama sometimes parses
+        // Gemma's malformed `{}` outputs as ToolCall entries with empty names.
         if let Some(tool_calls) = &self.message.tool_calls {
-            if !tool_calls.is_empty() {
-                return tool_calls.clone();
+            let valid: Vec<ToolCall> = tool_calls
+                .iter()
+                .filter(|tc| !tc.function.name.trim().is_empty())
+                .cloned()
+                .collect();
+            if !valid.is_empty() {
+                return valid;
             }
         }
 
@@ -718,6 +725,13 @@ pub fn parse_hermes_tool_calls(content: &str) -> Option<Vec<ToolCall>> {
 pub fn parse_json_tool_call(content: &str) -> Option<Vec<ToolCall>> {
     let trimmed = content.trim();
 
+    // Quick pre-filter: if the content doesn't contain a "name" key at all,
+    // there is no point trying to parse it as a tool call.  This avoids
+    // treating bare `{}` or code snippets as tool calls.
+    if !trimmed.contains("\"name\"") {
+        return None;
+    }
+
     // Try the whole content as a single JSON object first.
     if trimmed.starts_with('{') {
         if let Ok(value) = serde_json::from_str::<Value>(trimmed) {
@@ -804,6 +818,18 @@ pub fn parse_function_tag_tool_calls(content: &str) -> Option<Vec<ToolCall>> {
 fn value_to_tool_call(value: Value) -> Option<ToolCall> {
     let obj = value.as_object()?;
     let name = obj.get("name")?.as_str()?.to_string();
+
+    // Reject empty or whitespace-only names — Gemma sometimes outputs `{}`
+    // or `{"name": ""}` before it finds the correct format.
+    if name.trim().is_empty() {
+        return None;
+    }
+
+    // Reject names that look like JSON fragments (Gemma sometimes outputs
+    // the whole tool schema as the name field).
+    if name.trim_start().starts_with('{') || name.trim_start().starts_with('[') {
+        return None;
+    }
 
     let arguments = obj
         .get("arguments")
