@@ -1,10 +1,12 @@
 [package]
 name = "ollama_client_rs"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
-description = "A Rust SDK for the Ollama API"
+description = "A Rust SDK for the Ollama API with model-aware tool calling, streaming, and embeddings"
 license = "MIT"
 repository = "https://github.com/Adriftdev/ollama_client"
+keywords = ["ollama", "llm", "ai", "tool-calling", "streaming"]
+categories = ["api-bindings", "asynchronous"]
 
 [features]
 default = []
@@ -30,6 +32,7 @@ tracing = { version = "0.1", default-features = false, optional = true }
 
 [dev-dependencies]
 dotenvy = "0.15"
+tokio = { version = "1", features = ["full"] }
 tracing-subscriber = { version = "0.3", default-features = false, features = [
   "fmt",
   "registry",
