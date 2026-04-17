@@ -508,6 +508,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ollama_client_macros"
+version = "0.3.1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde_json",
+ "syn",
+]
+
+[[package]]
 name = "ollama_client_rs"
 version = "0.3.1"
 dependencies = [
@@ -515,6 +525,7 @@ dependencies = [
  "async-trait",
  "dotenvy",
  "futures-util",
+ "ollama_client_macros",
  "reqwest",
  "serde",
  "serde_json",

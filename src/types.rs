@@ -180,6 +180,34 @@ pub struct ChatRequest {
     pub keep_alive: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct Options {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_p: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_k: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub num_ctx: Option<usize>,
+    
+    #[serde(flatten)]
+    pub extra: std::collections::HashMap<String, Value>,
+}
+
+impl Options {
+    /// Provides optimal options for the Gemma 4 model.
+    pub fn gemma4_optimal(context_length: usize) -> Self {
+        Self {
+            temperature: Some(1.0),
+            top_p: Some(0.95),
+            top_k: Some(64),
+            num_ctx: Some(context_length),
+            extra: std::collections::HashMap::new(),
+        }
+    }
+}
+
 impl ChatRequest {
     /// Create a minimal non-streaming chat request.
     pub fn new(model: impl Into<String>, messages: Vec<Message>) -> Self {
@@ -313,6 +341,12 @@ pub struct Message {
     pub images: Option<Vec<String>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub audio: Option<Vec<String>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub video_frames: Option<Vec<String>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub thinking: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -326,6 +360,8 @@ impl Message {
             content: content.into(),
             name: None,
             images: None,
+            audio: None,
+            video_frames: None,
             thinking: None,
             tool_calls: None,
         }
@@ -337,6 +373,8 @@ impl Message {
             content: content.into(),
             name: None,
             images: None,
+            audio: None,
+            video_frames: None,
             thinking: None,
             tool_calls: None,
         }
@@ -348,6 +386,8 @@ impl Message {
             content: content.into(),
             name: None,
             images: None,
+            audio: None,
+            video_frames: None,
             thinking: None,
             tool_calls: None,
         }
@@ -359,6 +399,8 @@ impl Message {
             content: content.into(),
             name: Some(name.into()),
             images: None,
+            audio: None,
+            video_frames: None,
             thinking: None,
             tool_calls: None,
         }
@@ -405,6 +447,12 @@ pub struct FunctionDefinition {
     pub name: String,
     pub description: String,
     pub parameters: Value, // JSON schema object
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum StreamChunk {
+    Reasoning(String),
+    Content(String),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -1007,6 +1055,8 @@ mod tests {
                 content: String::new(),
                 name: None,
                 images: None,
+                audio: None,
+                video_frames: None,
                 thinking: None,
                 tool_calls: Some(vec![ToolCall {
                     id: Some("call_1".to_string()),
@@ -1043,6 +1093,8 @@ mod tests {
                     .to_string(),
                 name: None,
                 images: None,
+                audio: None,
+                video_frames: None,
                 thinking: None,
                 tool_calls: None,
             },

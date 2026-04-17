@@ -6,16 +6,22 @@ use std::pin::Pin;
 
 mod telemetry;
 pub mod types;
+pub mod macros;
+pub mod tools;
+
+pub use tools::{OllamaTool, ToolRegistry};
+pub use ollama_client_macros::OllamaTool;
 
 pub use types::{
     ChatRequest, ChatRequestBuilder, ChatResponse, EmbedInput, EmbedRequest, EmbedResponse,
     FunctionCall, FunctionDefinition, Message, Model, ModelDetails, ModelFamily, ModelInfo,
-    ToolCall, ToolFormat, Tool,
+    ToolCall, ToolFormat, Tool, StreamChunk,
     inject_tools_as_function_tag, inject_tools_as_hermes_xml, inject_tools_as_json_prompt,
     parse_function_tag_tool_calls, parse_hermes_tool_calls, parse_json_tool_call,
 };
 
 pub type ChatResponseStream = Pin<Box<dyn Stream<Item = Result<ChatResponse, OllamaError>> + Send>>;
+pub type ParsedStream = Pin<Box<dyn Stream<Item = Result<StreamChunk, OllamaError>> + Send>>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum OllamaError {
@@ -424,6 +430,8 @@ impl OllamaClient {
                         content: String::new(),
                         name: None,
                         images: None,
+                        audio: None,
+                        video_frames: None,
                         thinking: None,
                         tool_calls: None,
                     },
@@ -440,6 +448,67 @@ impl OllamaClient {
         };
 
         Ok(Box::pin(stream))
+    }
+
+    /// Send a streaming chat request to the Ollama `/api/chat` endpoint and parses the stream
+    /// into reasoning and content chunks. This is useful for dealing with Gemma 4's "Thinking"
+    /// mode tokens dynamically.
+    pub async fn chat_stream_parsed(
+        &self,
+        request: &ChatRequest,
+    ) -> Result<ParsedStream, OllamaError> {
+        let stream = self.chat_stream(request).await?;
+        let parsed_stream = try_stream! {
+            let mut is_thinking = false;
+            let mut thinking_buffer = String::new();
+            
+            futures_util::pin_mut!(stream);
+            
+            while let Some(chunk) = stream.next().await {
+                let response = chunk?;
+                let content = response.message.content;
+                
+                let mut current_idx = 0;
+                while current_idx < content.len() {
+                    let slice = &content[current_idx..];
+                    
+                    if is_thinking {
+                        if let Some(end_idx) = slice.find("<channel|>") {
+                            let part = &slice[..end_idx];
+                            thinking_buffer.push_str(part);
+                            if !thinking_buffer.is_empty() {
+                                yield StreamChunk::Reasoning(thinking_buffer.clone());
+                                thinking_buffer.clear();
+                            }
+                            is_thinking = false;
+                            current_idx += end_idx + "<channel|>".len();
+                        } else {
+                            thinking_buffer.push_str(slice);
+                            // Yield incrementally, or buffer
+                            yield StreamChunk::Reasoning(thinking_buffer.clone());
+                            thinking_buffer.clear();
+                            break;
+                        }
+                    } else {
+                        if let Some(start_idx) = slice.find("<|channel>thought\n") {
+                            let part = &slice[..start_idx];
+                            if !part.is_empty() {
+                                yield StreamChunk::Content(part.to_string());
+                            }
+                            is_thinking = true;
+                            current_idx += start_idx + "<|channel>thought\n".len();
+                        } else {
+                            if !slice.is_empty() {
+                                yield StreamChunk::Content(slice.to_string());
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        };
+
+        Ok(Box::pin(parsed_stream))
     }
 
     /// Send an embedding request to the Ollama `/api/embed` endpoint.

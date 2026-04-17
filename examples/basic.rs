@@ -1,13 +1,12 @@
+use futures_util::StreamExt as _;
 /// Basic example: list models, simple chat, and structured JSON output.
 ///
 /// Run with:
 /// ```
 /// OLLAMA_HOST=http://127.0.0.1:11434/api cargo run --example basic
 /// ```
-use ollama_client_rs::{
-    types::{ChatRequest, Message},
-    OllamaClient,
-};
+use ollama_client_rs::{chat_request, messages, types::Options, OllamaClient, StreamChunk};
+use serde_json::json;
 use std::env;
 
 #[tokio::main]
@@ -33,7 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Pick a model to use for the rest of the examples.
     let target_model = models
         .iter()
-        .find(|m| m.name.contains("qwen") || m.name.contains("gemma") || m.name.contains("llama"))
+        .find(|m| m.name.contains("qwen") || m.name.contains("gemma4") || m.name.contains("llama"))
         .map(|m| m.name.clone())
         .unwrap_or_else(|| models[0].name.clone());
 
@@ -41,30 +40,42 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // ── 2. Simple chat using the new helper constructors ──────────────────
     println!("=== Simple Chat ===");
-    let request = ChatRequest::new(
-        &target_model,
-        vec![
-            Message::system("You are a concise assistant. Answer in one sentence."),
-            Message::user("Why is the sky blue?"),
-        ],
-    );
 
-    let response = client.chat(&request).await?;
-    println!("Reply: {}", response.message.content);
-    if let (Some(prompt_tokens), Some(output_tokens)) =
-        (response.prompt_eval_count, response.eval_count)
-    {
-        println!("Tokens: {prompt_tokens} prompt + {output_tokens} output");
+    let request = chat_request! {
+        model: &target_model,
+        messages: messages!(
+            system: "You are a concise assistant. Answer in one sentence.",
+            user: "Why is the sky blue?"
+        ),
+        options: serde_json::to_value(Options::gemma4_optimal(32768)).unwrap(),
+    };
+
+    let mut response = client.chat_stream_parsed(&request).await?;
+
+    while let Some(parsed) = response.next().await {
+        match parsed {
+            Ok(chunk) => match chunk {
+                StreamChunk::Reasoning(reasoning) => {
+                    print!("{}", reasoning);
+                }
+                StreamChunk::Content(content) => {
+                    print!("{}", content);
+                }
+            },
+            Err(e) => eprintln!("Error parsing response: {e}"),
+        }
     }
 
     // ── 3. Fluent builder API ─────────────────────────────────────────────
     println!("\n=== Builder API ===");
-    let request = ChatRequest::builder(&target_model)
-        .message(Message::system("You are a helpful culinary assistant."))
-        .message(Message::user(
-            "Give me a recipe for chocolate chip cookies in JSON format.",
-        ))
-        .format(serde_json::json!({
+
+    let request = chat_request! {
+        model: &target_model,
+        messages: messages!(
+            system: "You are a helpful culinary assistant.",
+            user: "Give me a recipe for chocolate chip cookies in JSON format."
+        ),
+        format: json!({
             "type": "object",
             "properties": {
                 "name": { "type": "string" },
@@ -72,11 +83,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "instructions": { "type": "array", "items": { "type": "string" } }
             },
             "required": ["name", "ingredients", "instructions"]
-        }))
-        .build();
+        }),
+        options: serde_json::to_value(Options::gemma4_optimal(32768)).unwrap(),
 
-    let response = client.chat(&request).await?;
-    println!("JSON recipe:\n{}", response.message.content);
+    };
+
+    let mut response = client.chat_stream_parsed(&request).await?;
+    while let Some(parsed) = response.next().await {
+        match parsed {
+            Ok(chunk) => match chunk {
+                StreamChunk::Reasoning(reasoning) => {
+                    print!("{}", reasoning);
+                }
+                StreamChunk::Content(content) => {
+                    print!("{}", content);
+                }
+            },
+            Err(e) => eprintln!("Error parsing response: {e}"),
+        }
+    }
 
     // ── 4. Model info heuristics ──────────────────────────────────────────
     println!("\n=== Model Info ===");
