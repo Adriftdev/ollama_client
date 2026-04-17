@@ -1,6 +1,6 @@
 [package]
 name = "ollama_client_macros"
-version = "0.3.1"
+version = "0.1.0"
 edition = "2021"
 description = "Procedural macros for ollama_client_rs"
 license = "MIT"

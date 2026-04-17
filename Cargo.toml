@@ -13,7 +13,7 @@ default = []
 tracing = ["dep:tracing"]
 
 [dependencies]
-ollama_client_macros = { path = "ollama_client_macros", version = "0.3.1" }
+ollama_client_macros = { path = "ollama_client_macros", version = "0.1.0" }
 async-stream = { version = "0.3", default-features = false }
 async-trait = { version = "0.1", default-features = false }
 futures-util = { version = "0.3", default-features = false }
